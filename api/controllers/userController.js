@@ -1,13 +1,15 @@
-import mongoose from "mongoose";
+import bcrypt from 'bcryptjs'
 import User from "../models/User.js";
 
 
 export const createUser = async (req,res) =>{
     let {firstname,lastname,username,password} = req.body
     username= username.toLowerCase()
+
+    
     
     try {
-       
+            password = await bcrypt.hash(password, 10)
             const user = new User({firstname,lastname,username,password})
             await user.save()
             res.status(201).send("User created")
@@ -23,18 +25,17 @@ export const getCredentials = async (req,res) =>{
     username= username.toLowerCase()
 
     try{
-        const user = await User.findOne({username:username})
+        const user = await User.findOne({username})
+        if(!user) return res.status(404).send({ message: "User doesn't exist" })
+
+        const isPasswordCorrect = await bcrypt.compare(password, user.password)
+
+        if (!isPasswordCorrect) return res.status(400).send({ message: "Invalid credentials" })
         
-        if(user){
-            if(user.password === password){
-                const userDetails = {id:user._id,firstname:user.firstname,lastname:user.lastname,role:user.role}
-                res.status(200).send(userDetails)
-            }else{
-                res.status(401).send("Wrong password")
-            }
-        }else{
-            res.status(404).send("User Not exist")
-        }
+
+        const userDetails = {id:user._id,firstname:user.firstname,lastname:user.lastname,role:user.role}
+        res.status(200).send(userDetails)        
+        
     }catch(error){
         res.status(404).send(error.message)
     }
